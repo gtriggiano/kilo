@@ -62,6 +62,7 @@ const (
 	persistentKeepaliveKey       = "kilo.squat.ai/persistent-keepalive"
 	wireGuardIPAnnotationKey     = "kilo.squat.ai/wireguard-ip"
 	discoveredEndpointsKey       = "kilo.squat.ai/discovered-endpoints"
+	allowedLocationIPsKey        = "kilo.squat.ai/allowed-location-ips"
 	// RegionLabelKey is the key for the well-known Kubernetes topology region label.
 	RegionLabelKey  = "topology.kubernetes.io/region"
 	jsonPatchSlash  = "~1"
@@ -314,6 +315,15 @@ func translateNode(node *v1.Node, topologyLabel string) *mesh.Node {
 			discoveredEndpoints = nil
 		}
 	}
+	// Set allowed IPs for a location.
+	var allowedLocationIPs []*net.IPNet
+	if str, ok := node.ObjectMeta.Annotations[allowedLocationIPsKey]; ok {
+		for _, ip := range strings.Split(str, ",") {
+			if ipnet := normalizeIP(ip); ipnet != nil {
+				allowedLocationIPs = append(allowedLocationIPs, ipnet)
+			}
+		}
+	}
 
 	return &mesh.Node{
 		// Endpoint and InternalIP should only ever fail to parse if the
@@ -337,6 +347,7 @@ func translateNode(node *v1.Node, topologyLabel string) *mesh.Node {
 		// will parse as nil.
 		WireGuardIP:         normalizeIP(node.ObjectMeta.Annotations[wireGuardIPAnnotationKey]),
 		DiscoveredEndpoints: discoveredEndpoints,
+		AllowedLocationIPs:  allowedLocationIPs,
 	}
 }
 
